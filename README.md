@@ -1,6 +1,9 @@
 # Acer Charge Guard
 
-An Omarchy plugin to protect your Acer laptop battery. Website: https://zhines-labs.github.io/acer-charge-guard/
+An Omarchy plugin to protect your Acer laptop battery.
+**Website and live demo:** https://zhines-labs.github.io/acer-charge-guard/
+
+![The Acer Charge Guard panel open under the Omarchy bar](preview.png)
 
 A bar widget for the [Omarchy](https://omarchy.org) shell that controls the
 [acer-wmi-battery](https://github.com/frederik-h/acer-wmi-battery) kernel driver

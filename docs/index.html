@@ -2,188 +2,516 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Acer Charge Guard</title>
-<meta name="description" content="An Omarchy bar widget that turns the acer-wmi-battery 80% charge limit and calibration mode on and off.">
+<meta name="description" content="An Omarchy bar widget that holds your Acer laptop battery at 80% and runs firmware calibration, using the acer-wmi-battery driver.">
 <meta property="og:title" content="Acer Charge Guard">
-<meta property="og:description" content="Keep your Acer laptop battery healthy: set an 80% charge limit from the Omarchy bar.">
+<meta property="og:description" content="Hold your Acer battery at 80% from the Omarchy bar.">
 <meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='9' width='23' height='14' rx='3' fill='none' stroke='%2322a06b' stroke-width='2.5'/><rect x='27' y='13' width='3' height='6' rx='1' fill='%2322a06b'/><rect x='6' y='12' width='14' height='8' rx='1.5' fill='%2322a06b'/></svg>">
+<meta property="og:image" content="https://zhines-labs.github.io/acer-charge-guard/preview.png">
+<meta name="theme-color" content="#1a1b26">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231a1b26'/><path d='M9 23c0-9 6-14 15-14-1 9-5 15-13 15m-2-1 7-7' fill='none' stroke='%239ece6a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
+/* Layout: a Hyprland desktop in miniature. A bar across the top, tiled
+   windows with accent borders and gaps, the widget panel dropping from the bar.
+   Colors are real Omarchy theme palettes (colors.toml); the page re-themes live. */
 :root {
-  --bg: #f7f8f6; --surface: #ffffff; --text: #16201b; --muted: #5b6862;
-  --border: #dfe4e0; --accent: #1a8a5a; --accent-soft: #e3f3ea; --code-bg: #eef1ee;
-  --warn: #9a6200; --warn-soft: #fff4dc;
+  /* Catppuccin Latte: light default */
+  --bg: #eff1f5; --bg-dark: #e3e4e8; --bg-light: #dce0e8;
+  --fg: #4c4f69; --fg-dim: #8c8fa1; --fg-bright: #4c4f69;
+  --accent: #1e66f5; --muted: #acb0be; --sel: #ccd0da;
+  --green: #40a02b; --yellow: #df8e1d; --red: #d20f39;
+  --on-accent: #eff1f5;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --gap: 10px; --radius: 0px; --border: 2px;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f1412; --surface: #161d1a; --text: #e6ece8; --muted: #9aa8a1;
-    --border: #26302b; --accent: #3fcf8e; --accent-soft: #15291f; --code-bg: #1c2521;
-    --warn: #f0b443; --warn-soft: #2a2213;
+    /* Tokyo Night: Omarchy's default */
+    --bg: #1a1b26; --bg-dark: #13141c; --bg-light: #24283b;
+    --fg: #a9b1d6; --fg-dim: #565f89; --fg-bright: #c0caf5;
+    --accent: #7aa2f7; --muted: #414868; --sel: #292e42;
+    --green: #9ece6a; --yellow: #e0af68; --red: #f7768e;
+    --on-accent: #13141c;
+    color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0f1412; --surface: #161d1a; --text: #e6ece8; --muted: #9aa8a1;
-  --border: #26302b; --accent: #3fcf8e; --accent-soft: #15291f; --code-bg: #1c2521;
-  --warn: #f0b443; --warn-soft: #2a2213;
+  --bg: #1a1b26; --bg-dark: #13141c; --bg-light: #24283b;
+  --fg: #a9b1d6; --fg-dim: #565f89; --fg-bright: #c0caf5;
+  --accent: #7aa2f7; --muted: #414868; --sel: #292e42;
+  --green: #9ece6a; --yellow: #e0af68; --red: #f7768e;
+  --on-accent: #13141c;
+  color-scheme: dark;
 }
+
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
 body {
-  margin: 0; background: var(--bg); color: var(--text);
-  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  margin: 0; background: var(--bg-dark); color: var(--fg);
+  font: 16px/1.65 var(--sans);
+  transition: background-color .25s, color .25s;
 }
-a { color: var(--accent); }
-.wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
-header.hero { padding: 64px 0 40px; }
-.badge {
-  display: inline-block; font-size: 13px; font-weight: 600; color: var(--accent);
-  background: var(--accent-soft); padding: 4px 10px; border-radius: 999px;
-}
-h1 { font-size: clamp(32px, 6vw, 48px); line-height: 1.1; margin: 16px 0 12px; letter-spacing: -0.02em; }
-.lede { font-size: 19px; color: var(--muted); max-width: 620px; margin: 0 0 28px; }
-.cta { display: flex; gap: 12px; flex-wrap: wrap; }
-.btn {
-  display: inline-block; padding: 10px 18px; border-radius: 8px; font-weight: 600;
-  text-decoration: none; border: 1px solid var(--border); color: var(--text); background: var(--surface);
-}
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-:root[data-theme="dark"] .btn.primary { color: #08130d; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #08130d; } }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, kbd, pre, .mono { font-family: var(--mono); }
+code { font-size: .88em; color: var(--fg-bright); background: var(--sel); padding: 1px 6px; }
+h1, h2, h3 { font-family: var(--mono); color: var(--fg-bright); text-wrap: balance; letter-spacing: -0.02em; }
+::selection { background: var(--accent); color: var(--on-accent); }
 
-/* Widget mock */
-.mock {
-  margin: 40px 0 0; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 14px; padding: 20px; max-width: 420px;
-}
-.mock-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.mock-head strong { font-size: 17px; }
-.pill { font-size: 13px; color: var(--accent); background: var(--accent-soft); padding: 2px 10px; border-radius: 999px; }
-.bar { height: 10px; background: var(--code-bg); border-radius: 999px; overflow: hidden; position: relative; }
-.bar i { display: block; height: 100%; width: 78%; background: var(--accent); border-radius: 999px; }
-.bar b { position: absolute; left: 80%; top: -3px; bottom: -3px; width: 2px; background: var(--text); opacity: .5; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; font-size: 14px; }
-.stats span { display: block; color: var(--muted); font-size: 12px; }
-.row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); gap: 12px; }
-.row small { display: block; color: var(--muted); }
-.switch { flex: none; width: 40px; height: 22px; border-radius: 999px; background: var(--border); position: relative; }
-.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
-.switch.on { background: var(--accent); }
-.switch.on::after { left: 21px; }
+.page { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 
-section { padding: 40px 0; border-top: 1px solid var(--border); }
-h2 { font-size: 26px; margin: 0 0 16px; letter-spacing: -0.01em; }
-h3 { font-size: 17px; margin: 0 0 6px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
-.card p { margin: 0; color: var(--muted); font-size: 15px; }
-ol.steps { padding-left: 20px; }
-ol.steps li { margin-bottom: 18px; }
-.code {
-  position: relative; background: var(--code-bg); border: 1px solid var(--border);
-  border-radius: 8px; margin: 8px 0 0;
+/* ---------- Omarchy bar ---------- */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: var(--bg); border-bottom: 1px solid var(--sel);
+  font: 500 13px/1 var(--mono);
 }
-.code pre { margin: 0; padding: 12px 70px 12px 14px; overflow-x: auto; font: 14px/1.5 ui-monospace, "JetBrains Mono", Menlo, monospace; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+.bar-inner { display: flex; align-items: center; gap: 16px; height: 34px; }
+.ws { display: flex; gap: 2px; }
+.ws a { color: var(--fg-dim); text-decoration: none; padding: 4px 7px; }
+.ws a:hover { color: var(--fg-bright); }
+.ws a.on { color: var(--fg-bright); box-shadow: inset 0 -2px 0 var(--accent); }
+.clock { margin-inline: auto; color: var(--fg); white-space: nowrap; }
+.tray { display: flex; align-items: center; gap: 12px; color: var(--fg); }
+.tray svg { width: 15px; height: 15px; display: block; }
+.tray .gh { color: var(--fg); display: flex; }
+.widget-btn {
+  all: unset; cursor: pointer; display: flex; align-items: center; padding: 4px 4px 5px;
+  color: var(--green); box-shadow: inset 0 -2px 0 var(--accent);
+}
+.widget-btn:focus-visible { outline: 2px solid var(--accent); }
+.widget-btn svg { width: 16px; height: 16px; }
+@media (max-width: 560px) { .ws a:nth-child(n+4), .tray .hide-sm { display: none; } .clock { font-size: 12px; } }
+
+/* ---------- Hero: tiled windows ---------- */
+.hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: var(--gap); padding-block: var(--gap) 0; }
+@media (max-width: 860px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+.win { background: var(--bg); border: var(--border) solid var(--muted); border-radius: var(--radius); min-width: 0; }
+.win.active { border-color: var(--accent); }
+.win-title { display: flex; justify-content: space-between; gap: 12px; font: 12px/1 var(--mono); color: var(--fg-dim); padding: 10px 14px; border-bottom: 1px solid var(--sel); }
+.win-body { padding: clamp(20px, 4vw, 44px); }
+
+.eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--fg-dim); margin: 0 0 18px; }
+.eyebrow b { color: var(--green); font-weight: 600; }
+h1 { font-size: clamp(38px, 6.2vw, 68px); line-height: 1; margin: 0 0 20px; font-weight: 800; }
+h1 .pct { color: var(--green); }
+.lede { font-size: 18px; max-width: 34em; margin: 0 0 28px; }
+.cmd {
+  display: flex; align-items: stretch; background: var(--bg-dark); border: 1px solid var(--sel); max-width: 100%;
+  font: 14px/1.5 var(--mono);
+}
+.cmd pre { margin: 0; padding: 12px 14px; overflow-x: auto; flex: 1; min-width: 0; color: var(--fg-bright); }
+.cmd pre::before { content: "$ "; color: var(--green); }
+.cmd pre.nop::before { content: none; }
 .copy {
-  position: absolute; top: 7px; right: 7px; font: 12px system-ui, sans-serif; padding: 4px 9px;
-  border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer;
+  all: unset; cursor: pointer; flex: none; padding: 0 14px; font: 600 12px/1 var(--mono);
+  color: var(--fg-dim); border-left: 1px solid var(--sel); display: flex; align-items: center;
 }
-code { font-family: ui-monospace, Menlo, monospace; font-size: .92em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
-.note { background: var(--warn-soft); border-left: 3px solid var(--warn); padding: 12px 14px; border-radius: 6px; font-size: 15px; }
-table { width: 100%; border-collapse: collapse; font-size: 15px; }
-td, th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
-th { color: var(--muted); font-weight: 600; font-size: 13px; }
-.tablewrap { overflow-x: auto; }
-footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--border); }
+.copy:hover, .copy:focus-visible { color: var(--accent); }
+.copy.done { color: var(--green); }
+.hero-links { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 22px; font: 500 14px/1 var(--mono); }
+
+/* ---------- Interactive panel ---------- */
+.demo .win-body { padding: clamp(16px, 3vw, 26px); }
+.panel { font-family: var(--mono); }
+.p-head { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; }
+.p-icon { width: 34px; height: 34px; color: var(--fg-bright); }
+.p-icon svg { width: 100%; height: 100%; }
+.p-name { font-weight: 700; font-size: 17px; color: var(--fg-bright); }
+.p-state { font-weight: 800; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-bright); }
+.p-pct { font-weight: 800; font-size: 34px; color: var(--fg-bright); font-variant-numeric: tabular-nums; }
+.gauge { position: relative; height: 8px; background: var(--sel); margin: 16px 0 6px; }
+.gauge i { position: absolute; inset: 0 auto 0 0; background: var(--green); transition: width .6s ease, background-color .3s; }
+.gauge b { position: absolute; top: -5px; bottom: -5px; left: 80%; width: 2px; background: var(--fg-bright); transition: opacity .3s; }
+.gauge-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--fg-dim); position: relative; }
+.gauge-scale span:nth-child(2) { position: absolute; left: 80%; transform: translateX(-50%); }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 20px; font-size: 13px; margin: 14px 0; padding-bottom: 14px; border-bottom: 1px solid var(--sel); font-variant-numeric: tabular-nums; }
+.stats div { display: flex; justify-content: space-between; gap: 8px; }
+.stats dt { color: var(--fg-dim); } .stats dd { margin: 0; color: var(--fg); text-align: right; }
+.toggle {
+  all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center;
+  width: 100%; padding: 13px 14px; margin-top: 10px; border: 1px solid var(--muted); background: var(--bg-light);
+}
+.toggle:hover { border-color: var(--accent); }
+.toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle strong { display: block; color: var(--fg-bright); font-size: 15px; }
+.toggle small { display: block; color: var(--fg); font-size: 12px; line-height: 1.45; margin-top: 3px; }
+.sw { width: 50px; height: 26px; background: var(--sel); border: 1px solid var(--muted); position: relative; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: var(--fg-dim); transition: left .18s, background-color .18s; }
+.toggle[aria-checked="true"] .sw::after { left: 27px; background: var(--fg-bright); }
+.toggle[aria-checked="true"] .sw { border-color: var(--fg-bright); }
+.msg { min-height: 1.5em; margin: 10px 0 0; font-size: 12px; color: var(--yellow); }
+.ac-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--sel); font-size: 12px; color: var(--fg-dim); }
+.chip-btn { all: unset; cursor: pointer; white-space: nowrap; flex: none; font: 600 12px/1 var(--mono); padding: 7px 10px; border: 1px solid var(--muted); color: var(--fg-bright); }
+.chip-btn:hover { border-color: var(--accent); }
+.chip-btn:focus-visible { outline: 2px solid var(--accent); }
+
+/* ---------- Theme picker ---------- */
+.themes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block: var(--gap); }
+.themes > span { font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--fg-dim); margin-right: 6px; }
+.theme {
+  all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  font: 500 12px/1 var(--mono); padding: 7px 10px; background: var(--bg); color: var(--fg); border: 1px solid var(--sel);
+}
+.theme:hover { border-color: var(--muted); }
+.theme:focus-visible { outline: 2px solid var(--accent); }
+.theme[aria-pressed="true"] { border-color: var(--accent); color: var(--fg-bright); }
+.theme i { display: inline-flex; width: 26px; height: 10px; }
+.theme i u { flex: 1; }
+
+/* ---------- Content sections ---------- */
+.tiles { display: grid; gap: var(--gap); grid-template-columns: repeat(12, minmax(0, 1fr)); padding-bottom: var(--gap); }
+.tiles > .win { grid-column: span 12; }
+@media (min-width: 861px) {
+  .span-7 { grid-column: span 7 !important; } .span-5 { grid-column: span 5 !important; }
+  .span-6 { grid-column: span 6 !important; } .span-4 { grid-column: span 4 !important; }
+}
+h2 { font-size: clamp(24px, 3vw, 32px); line-height: 1.15; margin: 0 0 14px; font-weight: 800; }
+h3 { font-size: 16px; margin: 0 0 6px; font-weight: 700; }
+.prose { max-width: 62ch; }
+.prose p { margin: 0 0 14px; }
+.dim { color: var(--fg-dim); }
+
+.soc { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 22px 0 6px; font-family: var(--mono); }
+.soc div { border: 1px solid var(--sel); padding: 12px; }
+.soc b { display: block; font-size: 24px; color: var(--fg-bright); font-variant-numeric: tabular-nums; }
+.soc span { font-size: 12px; color: var(--fg-dim); }
+.soc .good { border-color: var(--green); } .soc .good b { color: var(--green); }
+@media (max-width: 480px) { .soc { grid-template-columns: minmax(0, 1fr); } }
+
+.shot { margin: 0; }
+.shot img { display: block; max-width: 100%; height: auto; border: 1px solid var(--sel); margin-inline: auto; }
+.shot figcaption { font: 12px/1.5 var(--mono); color: var(--fg-dim); margin-top: 10px; text-align: center; }
+
+.feat { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 22px 28px; margin-top: 8px; }
+.feat p { margin: 0; font-size: 15px; }
+.feat .k { font: 700 12px/1 var(--mono); color: var(--accent); letter-spacing: .08em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+
+.term { background: var(--bg-dark); border: 1px solid var(--sel); font: 13px/1.6 var(--mono); overflow-x: auto; margin: 14px 0 0; }
+.term pre { margin: 0; padding: 14px 16px; color: var(--fg); }
+.term .p { color: var(--green); } .term .c { color: var(--fg-dim); } .term .v { color: var(--yellow); }
+
+ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; display: grid; gap: 22px; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; }
+ol.steps li::before { content: counter(s); font: 800 14px/32px var(--mono); text-align: center; width: 32px; height: 32px; border: 1px solid var(--accent); color: var(--accent); }
+ol.steps p { margin: 4px 0 10px; }
+.note { border-left: 3px solid var(--yellow); padding: 10px 14px; background: var(--bg-light); font-size: 14px; margin-top: 22px; }
+
+.tablewrap { overflow-x: auto; margin-top: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--sel); vertical-align: top; }
+th { font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--fg-dim); }
+td:first-child { white-space: nowrap; }
+
+details { border-bottom: 1px solid var(--sel); }
+details:first-of-type { border-top: 1px solid var(--sel); }
+summary { cursor: pointer; padding: 14px 0; font: 600 15px/1.4 var(--mono); color: var(--fg-bright); list-style: none; display: flex; gap: 10px; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "+"; color: var(--accent); width: 1ch; }
+details[open] summary::before { content: "−"; }
+details p { margin: 0 0 16px 22px; max-width: 64ch; }
+
+footer { font: 12px/1.6 var(--mono); color: var(--fg-dim); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding-block: 18px 28px; }
+footer a { color: var(--fg); }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="hero">
-    <span class="badge">Omarchy plugin · bar widget</span>
-    <h1>Acer Charge Guard</h1>
-    <p class="lede">Stop your Acer laptop battery at 80% to slow wear, and run a calibration cycle when you need one, from the Omarchy bar. Built on the <code>acer-wmi-battery</code> kernel driver.</p>
-    <div class="cta">
-      <a class="btn primary" href="#install">Install</a>
-      <a class="btn" href="https://github.com/zhines-labs/acer-charge-guard">View on GitHub</a>
-    </div>
 
-    <div class="mock" aria-label="Preview of the widget panel">
-      <div class="mock-head"><strong>Acer Charge Guard</strong><span class="pill">Charge limited to 80%</span></div>
-      <div class="bar"><i></i><b></b></div>
-      <div class="stats">
-        <div><span>Temperature</span>31.4 °C</div>
-        <div><span>Source</span>Plugged in</div>
-        <div><span>Battery</span>Holding</div>
+<header class="bar">
+  <div class="page bar-inner">
+    <nav class="ws" aria-label="Sections">
+      <a href="#top" class="on">1</a><a href="#why">2</a><a href="#how">3</a><a href="#install">4</a><a href="#faq">5</a>
+    </nav>
+    <span class="clock" id="clock">acer-charge-guard</span>
+    <div class="tray">
+      <a class="gh hide-sm" href="https://github.com/zhines-labs/acer-charge-guard" aria-label="Source on GitHub">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.71 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.66 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0Z"/></svg>
+      </a>
+      <svg class="hide-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/></svg>
+      <svg class="hide-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
+      <button class="widget-btn" id="barIcon" aria-label="Acer Charge Guard: open panel demo" title="Acer battery: 80% limit on"></button>
+    </div>
+  </div>
+</header>
+
+<main class="page" id="top">
+  <section class="hero" aria-labelledby="h1">
+    <div class="win active">
+      <div class="win-title"><span>~/acer-charge-guard</span><span>omarchy plugin · bar widget</span></div>
+      <div class="win-body">
+        <p class="eyebrow">For Acer laptops on <b>Omarchy</b></p>
+        <h1 id="h1">Stop at <span class="pct">80%</span>.<br>Keep the battery.</h1>
+        <p class="lede">Acer Charge Guard puts the firmware charge limit in your Omarchy bar. One click holds the battery at 80% while you're plugged in all day, and calibration is there when the gauge drifts.</p>
+        <div class="cmd"><pre>omarchy plugin add https://github.com/zhines-labs/acer-charge-guard --enable</pre><button class="copy" type="button">copy</button></div>
+        <div class="hero-links">
+          <a href="#install">Install guide →</a>
+          <a href="https://github.com/zhines-labs/acer-charge-guard">Source on GitHub</a>
+          <a href="https://github.com/zhines-labs/acer-charge-guard/blob/main/LICENSE">MIT license</a>
+        </div>
       </div>
-      <div class="row"><div>Charge limit (80%)<small>Stops charging at 80% to slow battery wear</small></div><div class="switch on"></div></div>
-      <div class="row"><div>Calibration mode<small>Charges to 100%, discharges, recharges</small></div><div class="switch"></div></div>
     </div>
-  </header>
 
-  <section>
-    <h2>What it does</h2>
-    <div class="grid">
-      <div class="card"><h3>80% health mode</h3><p>Turn the firmware charge limit on or off with one click. The bar icon shows a leaf while the limit is on.</p></div>
-      <div class="card"><h3>Calibration</h3><p>Start the firmware calibration cycle. It won't start on battery power, and you can't turn health mode back on until it stops.</p></div>
-      <div class="card"><h3>Live readings</h3><p>Battery temperature, AC or battery power, and charge or discharge rate in watts.</p></div>
-      <div class="card"><h3>One password prompt</h3><p>Changes go through <code>pkexec</code>. Only the two driver files can be written, and you authenticate once for each change.</p></div>
-    </div>
-  </section>
-
-  <section id="install">
-    <h2>Install</h2>
-    <ol class="steps">
-      <li>
-        <strong>Install the kernel driver</strong> (from the AUR):
-        <div class="code"><pre>yay -S acer-wmi-battery-dkms
-sudo modprobe acer-wmi-battery</pre><button class="copy">Copy</button></div>
-      </li>
-      <li>
-        <strong>Add the plugin to Omarchy:</strong>
-        <div class="code"><pre>omarchy plugin add https://github.com/zhines-labs/acer-charge-guard --enable</pre><button class="copy">Copy</button></div>
-      </li>
-      <li>Add <em>Acer Charge Guard</em> to your bar from the shell settings (category <em>System</em>).</li>
-    </ol>
-    <p class="note">If the widget says <em>acer-wmi-battery not loaded</em>, the driver isn't running. Check with <code>lsmod | grep acer_wmi_battery</code>. Not every Acer model supports the charge limit.</p>
-  </section>
-
-  <section>
-    <h2>Keybindings and scripts</h2>
-    <p>Every action can be called over IPC, so you can bind it to a key:</p>
-    <div class="code"><pre>omarchy-shell io.github.zhines-labs.acer-charge-guard toggleHealth</pre><button class="copy">Copy</button></div>
-    <div class="tablewrap" style="margin-top:16px">
-      <table>
-        <tr><th>Method</th><th>What it does</th></tr>
-        <tr><td><code>toggleHealth</code></td><td>Turn the 80% limit on or off</td></tr>
-        <tr><td><code>toggleCalibration</code></td><td>Start or stop calibration</td></tr>
-        <tr><td><code>toggle</code> / <code>open</code> / <code>close</code></td><td>Show or hide the panel</td></tr>
-      </table>
+    <div class="win demo" id="demo">
+      <div class="win-title"><span>panel · live demo</span><span id="acLabel">ac: plugged in</span></div>
+      <div class="win-body">
+        <div class="panel" role="group" aria-label="Acer Charge Guard panel demo">
+          <div class="p-head">
+            <div class="p-icon" id="pIcon"></div>
+            <div><div class="p-name">Acer Charge Guard</div><div class="p-state" id="pState">Charge limited to 80%</div></div>
+            <div class="p-pct" id="pPct">80%</div>
+          </div>
+          <div class="gauge" aria-hidden="true"><i id="gFill" style="width:80%"></i><b id="gMark"></b></div>
+          <div class="gauge-scale" aria-hidden="true"><span>0</span><span>80</span><span>100</span></div>
+          <dl class="stats">
+            <div><dt>Temperature</dt><dd id="sTemp">31.0 °C</dd></div>
+            <div><dt>Power</dt><dd id="sPow">0.0 W</dd></div>
+            <div><dt>Source</dt><dd id="sSrc">Plugged in</dd></div>
+            <div><dt>Battery</dt><dd id="sFlow">Holding</dd></div>
+          </dl>
+          <button class="toggle" id="tHealth" role="switch" aria-checked="true" type="button">
+            <span><strong>Charge limit (80%)</strong><small>Health mode: stops charging at 80% to slow battery wear</small></span><span class="sw" aria-hidden="true"></span>
+          </button>
+          <button class="toggle" id="tCal" role="switch" aria-checked="false" type="button">
+            <span><strong>Calibration mode</strong><small>Charges to 100%, discharges, recharges. Takes hours; switch it off when it finishes</small></span><span class="sw" aria-hidden="true"></span>
+          </button>
+          <p class="msg" id="msg" role="status" aria-live="polite"></p>
+          <div class="ac-row"><span>Try the rules: unplug, then start calibration.</span><button class="chip-btn" id="acBtn" type="button">Unplug charger</button></div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section>
-    <h2>FAQ</h2>
-    <h3>Does the limit stay on after a reboot?</h3>
-    <p style="color:var(--muted)">That depends on your laptop's firmware. If it resets on your model, turn it back on from the bar after you boot.</p>
-    <h3>Is this an official Acer product?</h3>
-    <p style="color:var(--muted)">No. It's a community plugin. Acer is a trademark of Acer Inc. and is used here only to say which laptops it works with.</p>
-  </section>
+  <div class="themes" role="group" aria-label="Preview this page in an Omarchy theme" id="themes"><span>Theme</span></div>
+
+  <div class="tiles">
+    <section class="win span-7" id="why" aria-labelledby="h-why">
+      <div class="win-title"><span>why-80.md</span><span>battery health</span></div>
+      <div class="win-body prose">
+        <h2 id="h-why">A laptop on a desk is a battery at 100% all day</h2>
+        <p>Lithium-ion cells wear faster when they sit at a high charge, and faster again when they're warm. A laptop that stays plugged in keeps its battery near full for hours at a time, which is the worst place for it to rest.</p>
+        <p>Many Acer laptops can stop charging at 80% in firmware. Acer's own app for this only runs on Windows. On Linux, the <a href="https://github.com/frederik-h/acer-wmi-battery">acer-wmi-battery</a> driver gives you that switch, and this plugin puts it in your bar.</p>
+        <div class="soc" aria-label="Where the charge sits">
+          <div><b>100%</b><span>default, plugged in</span></div>
+          <div class="good"><b>80%</b><span>health mode holds here</span></div>
+          <div><b>0→100</b><span>calibration cycle</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="win span-5" aria-label="Screenshot">
+      <div class="win-title"><span>preview.png</span><span>482×392</span></div>
+      <div class="win-body">
+        <figure class="shot">
+          <img src="preview.png" width="482" height="392" alt="The Acer Charge Guard panel open under the Omarchy bar: charge limited to 80%, 79% charge, 24.9 °C, plugged in and holding, with the charge limit switched on and calibration off.">
+          <figcaption>The real panel, running on an Omarchy desktop with the Milkmatcha Light theme. It follows whatever theme you use.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="win span-12" id="how" aria-labelledby="h-how">
+      <div class="win-title"><span>how-it-works</span><span>/sys/bus/wmi/drivers/acer-wmi-battery</span></div>
+      <div class="win-body">
+        <h2 id="h-how">What's in the panel</h2>
+        <div class="feat">
+          <div><span class="k">Health mode</span><p>Turns the firmware 80% limit on or off. The bar icon is a leaf while the limit is on.</p></div>
+          <div><span class="k">Calibration</span><p>Runs the firmware's full charge-discharge-charge cycle so the percentage reads true again. It won't start on battery power, and the limit stays off until you stop it.</p></div>
+          <div><span class="k">Live readings</span><p>Battery temperature, charger or battery, and charge rate in watts: + going in, − coming out.</p></div>
+          <div><span class="k">One prompt, two files</span><p>Changes go through <code>pkexec</code>. Only <code>health_mode</code> and <code>calibration_mode</code> can be written, and only with 0 or 1.</p></div>
+        </div>
+        <div class="term" aria-label="Example of the sysfs files the plugin reads">
+<pre><span class="c"># What the widget reads every few seconds (values are the driver's raw units)</span>
+<span class="p">$</span> grep -H . /sys/bus/wmi/drivers/acer-wmi-battery/*_mode
+.../health_mode:<span class="v">1</span>           <span class="c"># 1 = stop at 80%</span>
+.../calibration_mode:<span class="v">0</span>
+<span class="p">$</span> cat /sys/bus/wmi/drivers/acer-wmi-battery/temperature
+<span class="v">31000</span>                          <span class="c"># millidegrees → 31.0 °C</span>
+<span class="p">$</span> cat /sys/class/power_supply/BAT1/{current_now,voltage_now}
+<span class="v">1250000</span>                        <span class="c"># µA</span>
+<span class="v">12600000</span>                       <span class="c"># µV → 1.25 A × 12.6 V = 15.8 W</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="win span-7" id="install" aria-labelledby="h-install">
+      <div class="win-title"><span>install.sh</span><span>3 steps</span></div>
+      <div class="win-body">
+        <h2 id="h-install">Install</h2>
+        <ol class="steps">
+          <li><div><h3>Install the kernel driver</h3><p>It's in the AUR as a DKMS package, so it rebuilds when your kernel updates.</p>
+            <div class="cmd"><pre>omarchy pkg aur add acer-wmi-battery-dkms</pre><button class="copy" type="button">copy</button></div>
+            <div class="cmd" style="margin-top:6px"><pre>sudo modprobe acer-wmi-battery</pre><button class="copy" type="button">copy</button></div></div></li>
+          <li><div><h3>Add the plugin</h3><p>Omarchy clones it into <code>~/.config/omarchy/plugins/</code> and turns it on.</p>
+            <div class="cmd"><pre>omarchy plugin add https://github.com/zhines-labs/acer-charge-guard --enable</pre><button class="copy" type="button">copy</button></div></div></li>
+          <li><div><h3>Put it on the bar</h3><p>Add <strong>Acer Charge Guard</strong> from the shell settings, under <em>System</em>. Or move it with <code>omarchy bar</code>.</p></div></li>
+        </ol>
+        <p class="note">If the panel says <em>acer-wmi-battery not loaded</em>, check <code>lsmod | grep acer_wmi_battery</code>. Not every Acer model has the charge limit in firmware.</p>
+      </div>
+    </section>
+
+    <section class="win span-5" aria-labelledby="h-keys">
+      <div class="win-title"><span>bindings.lua</span><span>ipc</span></div>
+      <div class="win-body">
+        <h2 id="h-keys">Bind it to a key</h2>
+        <p class="dim" style="margin:0">Every action is an IPC method:</p>
+        <div class="tablewrap">
+          <table>
+            <tr><th>Method</th><th>Does</th></tr>
+            <tr><td><code>toggleHealth</code></td><td>80% limit on or off</td></tr>
+            <tr><td><code>toggleCalibration</code></td><td>Start or stop calibration</td></tr>
+            <tr><td><code>toggle</code></td><td>Show or hide the panel</td></tr>
+          </table>
+        </div>
+        <div class="term">
+<pre><span class="c">-- ~/.config/hypr/bindings.lua</span>
+o.bind("SUPER + SHIFT + B",
+  "Toggle battery limit",
+  "omarchy-shell io.github.zhines-labs.acer-charge-guard toggleHealth")</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="win span-12" id="faq" aria-labelledby="h-faq">
+      <div class="win-title"><span>faq</span><span>5 answers</span></div>
+      <div class="win-body">
+        <h2 id="h-faq">Questions</h2>
+        <details><summary>Does the limit survive a reboot?</summary><p>That's up to your laptop's firmware. Some models keep it, some reset it. If yours resets, turn it back on from the bar after boot, or bind <code>toggleHealth</code> to a key.</p></details>
+        <details><summary>Why can't I start calibration on battery?</summary><p>Calibration charges to 100%, drains, and charges again. The firmware needs the charger for that, so the panel won't start it until you plug in.</p></details>
+        <details><summary>Why can't I turn the limit on during calibration?</summary><p>The two modes fight each other: one stops at 80%, the other needs 100%. Stop calibration first, then switch the limit back on.</p></details>
+        <details><summary>Why does Power show 0.0 W?</summary><p>When the limit is holding at 80% and you're plugged in, the battery is neither charging nor draining. Unplug the charger and you'll see the draw.</p></details>
+        <details><summary>Is this made by Acer?</summary><p>No. It's a community plugin built on the community <a href="https://github.com/frederik-h/acer-wmi-battery">acer-wmi-battery</a> driver. Acer is a trademark of Acer Inc. and is named here only to say which laptops it works with.</p></details>
+      </div>
+    </section>
+  </div>
 
   <footer>
-    MIT licensed · Made by <a href="https://github.com/zhines-labs">zhines-labs</a> for <a href="https://omarchy.org">Omarchy</a>
+    <span>Acer Charge Guard · MIT · made by <a href="https://github.com/zhines-labs">zhines-labs</a></span>
+    <span>A plugin for <a href="https://omarchy.org">Omarchy</a></span>
   </footer>
-</div>
+</main>
+
 <script>
-document.querySelectorAll('.copy').forEach(function (b) {
-  b.addEventListener('click', function () {
-    var text = b.previousElementSibling.textContent;
-    navigator.clipboard.writeText(text).then(function () {
-      b.textContent = 'Copied';
-      setTimeout(function () { b.textContent = 'Copy'; }, 1500);
-    }, function () { b.textContent = 'Select & copy'; });
+(function () {
+  // ---------- Icons (match the bar glyphs the plugin uses) ----------
+  var ICONS = {
+    leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15"/><path d="M5 20l7-7"/></svg>',
+    full: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="7" y="4" width="10" height="17" rx="1.5"/><path d="M10 2h4"/><rect x="9.5" y="7" width="5" height="11.5" fill="currentColor" stroke="none"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>'
+  };
+
+  // ---------- Panel demo: same rules as Model.js ----------
+  var s = { health: 1, cal: 0, ac: true, pct: 80 };
+  var $ = function (id) { return document.getElementById(id); };
+  var msgTimer;
+  function say(t) { $("msg").textContent = t; clearTimeout(msgTimer); if (t) msgTimer = setTimeout(function () { $("msg").textContent = ""; }, 3500); }
+
+  function render() {
+    var icon = s.cal ? "cal" : (s.health ? "leaf" : "full");
+    $("pIcon").innerHTML = ICONS[icon];
+    $("barIcon").innerHTML = ICONS[icon];
+    $("barIcon").title = s.cal ? "Acer battery: calibrating" : (s.health ? "Acer battery: 80% limit on" : "Acer battery: limit off");
+    $("pState").textContent = s.cal ? "Calibrating" : (s.health ? "Charge limited to 80%" : "Charging to 100%");
+    $("tHealth").setAttribute("aria-checked", String(!!s.health));
+    $("tCal").setAttribute("aria-checked", String(!!s.cal));
+    var target = !s.ac ? s.pct : (s.cal ? 100 : (s.health ? 80 : 100));
+    var flow = !s.ac ? "discharging" : (Math.abs(target - s.pct) < 1 ? "idle" : (target > s.pct ? "charging" : "discharging"));
+    $("sFlow").textContent = { charging: "Charging", discharging: "Discharging", idle: "Holding" }[flow];
+    $("sPow").textContent = flow === "idle" ? "0.0 W" : (flow === "charging" ? "+24.3 W" : "−9.6 W");
+    $("sSrc").textContent = s.ac ? "Plugged in" : "On battery";
+    $("acLabel").textContent = s.ac ? "ac: plugged in" : "ac: on battery";
+    $("acBtn").textContent = s.ac ? "Unplug charger" : "Plug in charger";
+    $("sTemp").textContent = (flow === "charging" ? 33.5 : 31.0).toFixed(1) + " °C";
+    $("pPct").textContent = Math.round(s.pct) + "%";
+    $("gFill").style.width = s.pct + "%";
+    $("gMark").style.opacity = s.health && !s.cal ? 1 : 0.25;
+  }
+  // Drift the percentage toward where the firmware would take it.
+  setInterval(function () {
+    var target = !s.ac ? Math.max(20, s.pct - 1) : (s.cal ? 100 : (s.health ? 80 : 100));
+    if (Math.abs(target - s.pct) >= 1) { s.pct += target > s.pct ? 1 : -1; render(); }
+  }, 700);
+
+  $("tHealth").addEventListener("click", function () {
+    if (!s.health && s.cal) return say("Stop calibration before turning the limit back on");
+    s.health = s.health ? 0 : 1; say(""); render();
   });
-});
+  $("tCal").addEventListener("click", function () {
+    if (!s.cal && !s.ac) return say("Plug in the charger before starting calibration");
+    s.cal = s.cal ? 0 : 1; if (s.cal) s.health = 0; say(""); render();
+  });
+  $("acBtn").addEventListener("click", function () { s.ac = !s.ac; render(); });
+  $("barIcon").addEventListener("click", function () {
+    var d = $("demo"); d.scrollIntoView({ block: "center" }); $("tHealth").focus();
+  });
+  render();
+
+  // ---------- Clock, like the Omarchy bar ----------
+  function tick() {
+    var d = new Date();
+    $("clock").textContent = d.toLocaleDateString(undefined, { weekday: "long" }) + " " +
+      String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+  tick(); setInterval(tick, 15000);
+
+  // ---------- Copy buttons ----------
+  document.querySelectorAll(".copy").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var pre = b.previousElementSibling;
+      var done = function () { b.textContent = "copied"; b.classList.add("done"); setTimeout(function () { b.textContent = "copy"; b.classList.remove("done"); }, 1500); };
+      var fallback = function () { var r = document.createRange(); r.selectNodeContents(pre); var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); b.textContent = "selected"; };
+      if (navigator.clipboard) navigator.clipboard.writeText(pre.textContent).then(done, fallback); else fallback();
+    });
+  });
+
+  // ---------- Omarchy themes, from each stock theme's colors.toml ----------
+  // (dim-text values lifted a little where the stock one is too faint for body copy)
+  // [name, mode, bg, dark_bg, lighter_bg, fg, dark_fg, bright_fg, accent, muted, selection, green, yellow, red]
+  var THEMES = [
+    ["Tokyo Night", "dark", "#1a1b26", "#13141c", "#24283b", "#a9b1d6", "#565f89", "#c0caf5", "#7aa2f7", "#414868", "#292e42", "#9ece6a", "#e0af68", "#f7768e"],
+    ["Catppuccin", "dark", "#1e1e2e", "#161622", "#313244", "#cdd6f4", "#6c7086", "#cdd6f4", "#89b4fa", "#585b70", "#45475a", "#a6e3a1", "#f9e2af", "#f38ba8"],
+    ["Gruvbox", "dark", "#282828", "#1e1e1e", "#3c3836", "#d4be98", "#7c6f64", "#d4be98", "#7daea3", "#665c54", "#504945", "#a9b665", "#d8a657", "#ea6962"],
+    ["Nord", "dark", "#2e3440", "#222730", "#3b4252", "#d8dee9", "#7b8496", "#d8dee9", "#81a1c1", "#4c566a", "#434c5e", "#a3be8c", "#ebcb8b", "#bf616a"],
+    ["Everforest", "dark", "#2d353b", "#21272c", "#343f44", "#d3c6aa", "#859289", "#d3c6aa", "#7fbbb3", "#475258", "#3d484d", "#a7c080", "#dbbc7f", "#e67e80"],
+    ["Kanagawa", "dark", "#1f1f28", "#17171e", "#223249", "#dcd7ba", "#727169", "#dcd7ba", "#dcd7ba", "#54546d", "#363646", "#76946a", "#c0a36e", "#c34043"],
+    ["Matte Black", "dark", "#121212", "#0d0d0d", "#1e1e1e", "#bebebe", "#6a6a6a", "#eaeaea", "#e68e0d", "#333333", "#2a2a2a", "#ffc107", "#e0b04f", "#d35f5f"],
+    ["Catppuccin Latte", "light", "#eff1f5", "#e3e4e8", "#dce0e8", "#4c4f69", "#8c8fa1", "#4c4f69", "#1e66f5", "#acb0be", "#ccd0da", "#40a02b", "#df8e1d", "#d20f39"],
+    ["Rosé Pine", "light", "#faf4ed", "#ede7e1", "#f2e9e1", "#575279", "#9893a5", "#575279", "#56949f", "#cecacd", "#dfdad9", "#286983", "#ea9d34", "#b4637a"]
+  ];
+  var KEYS = ["--bg", "--bg-dark", "--bg-light", "--fg", "--fg-dim", "--fg-bright", "--accent", "--muted", "--sel", "--green", "--yellow", "--red"];
+  var root = document.documentElement, wrap = $("themes"), meta = document.querySelector('meta[name="theme-color"]');
+
+  function apply(i) {
+    var t = THEMES[i];
+    KEYS.forEach(function (k, j) { root.style.setProperty(k, t[j + 2]); });
+    root.style.setProperty("--on-accent", t[3]);
+    root.style.colorScheme = t[1];
+    if (meta) meta.setAttribute("content", t[2]);
+    wrap.querySelectorAll(".theme").forEach(function (b, j) { b.setAttribute("aria-pressed", String(j === i)); });
+  }
+  THEMES.forEach(function (t, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "theme"; b.setAttribute("aria-pressed", "false");
+    b.innerHTML = '<i aria-hidden="true"><u style="background:' + t[2] + '"></u><u style="background:' + t[8] + '"></u><u style="background:' + t[11] + '"></u></i>' + t[0];
+    b.addEventListener("click", function () { apply(i); try { localStorage.setItem("acg-theme", t[0]); } catch (e) {} });
+    wrap.appendChild(b);
+  });
+  var saved = null; try { saved = localStorage.getItem("acg-theme"); } catch (e) {}
+  var idx = THEMES.findIndex(function (t) { return t[0] === saved; });
+  if (idx >= 0) apply(idx);
+  else {
+    // No choice yet: mark the theme the system default is showing.
+    var dark = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
+    wrap.querySelectorAll(".theme")[dark ? 0 : 7].setAttribute("aria-pressed", "true");
+  }
+})();
 </script>
 </body>
 </html>
