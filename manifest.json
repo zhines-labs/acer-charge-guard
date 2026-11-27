@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.zhines-labs.acer-charge-guard",
+  "name": "Acer Charge Guard",
+  "version": "0.2.0",
+  "author": "zhines-labs",
+  "license": "MIT",
+  "description": "Toggle the acer-wmi-battery 80% charge limit (health mode) and calibration mode from the bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Acer Charge Guard",
+    "description": "Health mode (80% limit) and calibration toggles for acer-wmi-battery",
+    "category": "System",
+    "allowMultiple": false
+  }
+}

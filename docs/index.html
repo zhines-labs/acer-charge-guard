@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acer Charge Guard</title>
+<meta name="description" content="An Omarchy bar widget that turns the acer-wmi-battery 80% charge limit and calibration mode on and off.">
+<meta property="og:title" content="Acer Charge Guard">
+<meta property="og:description" content="Keep your Acer laptop battery healthy: set an 80% charge limit from the Omarchy bar.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='9' width='23' height='14' rx='3' fill='none' stroke='%2322a06b' stroke-width='2.5'/><rect x='27' y='13' width='3' height='6' rx='1' fill='%2322a06b'/><rect x='6' y='12' width='14' height='8' rx='1.5' fill='%2322a06b'/></svg>">
+<style>
+:root {
+  --bg: #f7f8f6; --surface: #ffffff; --text: #16201b; --muted: #5b6862;
+  --border: #dfe4e0; --accent: #1a8a5a; --accent-soft: #e3f3ea; --code-bg: #eef1ee;
+  --warn: #9a6200; --warn-soft: #fff4dc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1412; --surface: #161d1a; --text: #e6ece8; --muted: #9aa8a1;
+    --border: #26302b; --accent: #3fcf8e; --accent-soft: #15291f; --code-bg: #1c2521;
+    --warn: #f0b443; --warn-soft: #2a2213;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1412; --surface: #161d1a; --text: #e6ece8; --muted: #9aa8a1;
+  --border: #26302b; --accent: #3fcf8e; --accent-soft: #15291f; --code-bg: #1c2521;
+  --warn: #f0b443; --warn-soft: #2a2213;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent); }
+.wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+header.hero { padding: 64px 0 40px; }
+.badge {
+  display: inline-block; font-size: 13px; font-weight: 600; color: var(--accent);
+  background: var(--accent-soft); padding: 4px 10px; border-radius: 999px;
+}
+h1 { font-size: clamp(32px, 6vw, 48px); line-height: 1.1; margin: 16px 0 12px; letter-spacing: -0.02em; }
+.lede { font-size: 19px; color: var(--muted); max-width: 620px; margin: 0 0 28px; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn {
+  display: inline-block; padding: 10px 18px; border-radius: 8px; font-weight: 600;
+  text-decoration: none; border: 1px solid var(--border); color: var(--text); background: var(--surface);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme="dark"] .btn.primary { color: #08130d; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #08130d; } }
+
+/* Widget mock */
+.mock {
+  margin: 40px 0 0; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 20px; max-width: 420px;
+}
+.mock-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.mock-head strong { font-size: 17px; }
+.pill { font-size: 13px; color: var(--accent); background: var(--accent-soft); padding: 2px 10px; border-radius: 999px; }
+.bar { height: 10px; background: var(--code-bg); border-radius: 999px; overflow: hidden; position: relative; }
+.bar i { display: block; height: 100%; width: 78%; background: var(--accent); border-radius: 999px; }
+.bar b { position: absolute; left: 80%; top: -3px; bottom: -3px; width: 2px; background: var(--text); opacity: .5; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; font-size: 14px; }
+.stats span { display: block; color: var(--muted); font-size: 12px; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); gap: 12px; }
+.row small { display: block; color: var(--muted); }
+.switch { flex: none; width: 40px; height: 22px; border-radius: 999px; background: var(--border); position: relative; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.switch.on { background: var(--accent); }
+.switch.on::after { left: 21px; }
+
+section { padding: 40px 0; border-top: 1px solid var(--border); }
+h2 { font-size: 26px; margin: 0 0 16px; letter-spacing: -0.01em; }
+h3 { font-size: 17px; margin: 0 0 6px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+ol.steps { padding-left: 20px; }
+ol.steps li { margin-bottom: 18px; }
+.code {
+  position: relative; background: var(--code-bg); border: 1px solid var(--border);
+  border-radius: 8px; margin: 8px 0 0;
+}
+.code pre { margin: 0; padding: 12px 70px 12px 14px; overflow-x: auto; font: 14px/1.5 ui-monospace, "JetBrains Mono", Menlo, monospace; }
+.copy {
+  position: absolute; top: 7px; right: 7px; font: 12px system-ui, sans-serif; padding: 4px 9px;
+  border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer;
+}
+code { font-family: ui-monospace, Menlo, monospace; font-size: .92em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.note { background: var(--warn-soft); border-left: 3px solid var(--warn); padding: 12px 14px; border-radius: 6px; font-size: 15px; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+td, th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 13px; }
+.tablewrap { overflow-x: auto; }
+footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <span class="badge">Omarchy plugin · bar widget</span>
+    <h1>Acer Charge Guard</h1>
+    <p class="lede">Stop your Acer laptop battery at 80% to slow wear, and run a calibration cycle when you need one, from the Omarchy bar. Built on the <code>acer-wmi-battery</code> kernel driver.</p>
+    <div class="cta">
+      <a class="btn primary" href="#install">Install</a>
+      <a class="btn" href="https://github.com/zhines-labs/acer-charge-guard">View on GitHub</a>
+    </div>
+
+    <div class="mock" aria-label="Preview of the widget panel">
+      <div class="mock-head"><strong>Acer Charge Guard</strong><span class="pill">Charge limited to 80%</span></div>
+      <div class="bar"><i></i><b></b></div>
+      <div class="stats">
+        <div><span>Temperature</span>31.4 °C</div>
+        <div><span>Source</span>Plugged in</div>
+        <div><span>Battery</span>Holding</div>
+      </div>
+      <div class="row"><div>Charge limit (80%)<small>Stops charging at 80% to slow battery wear</small></div><div class="switch on"></div></div>
+      <div class="row"><div>Calibration mode<small>Charges to 100%, discharges, recharges</small></div><div class="switch"></div></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>What it does</h2>
+    <div class="grid">
+      <div class="card"><h3>80% health mode</h3><p>Turn the firmware charge limit on or off with one click. The bar icon shows a leaf while the limit is on.</p></div>
+      <div class="card"><h3>Calibration</h3><p>Start the firmware calibration cycle. It won't start on battery power, and you can't turn health mode back on until it stops.</p></div>
+      <div class="card"><h3>Live readings</h3><p>Battery temperature, AC or battery power, and charge or discharge rate in watts.</p></div>
+      <div class="card"><h3>One password prompt</h3><p>Changes go through <code>pkexec</code>. Only the two driver files can be written, and you authenticate once for each change.</p></div>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Install</h2>
+    <ol class="steps">
+      <li>
+        <strong>Install the kernel driver</strong> (from the AUR):
+        <div class="code"><pre>yay -S acer-wmi-battery-dkms
+sudo modprobe acer-wmi-battery</pre><button class="copy">Copy</button></div>
+      </li>
+      <li>
+        <strong>Add the plugin to Omarchy:</strong>
+        <div class="code"><pre>omarchy plugin add https://github.com/zhines-labs/acer-charge-guard --enable</pre><button class="copy">Copy</button></div>
+      </li>
+      <li>Add <em>Acer Charge Guard</em> to your bar from the shell settings (category <em>System</em>).</li>
+    </ol>
+    <p class="note">If the widget says <em>acer-wmi-battery not loaded</em>, the driver isn't running. Check with <code>lsmod | grep acer_wmi_battery</code>. Not every Acer model supports the charge limit.</p>
+  </section>
+
+  <section>
+    <h2>Keybindings and scripts</h2>
+    <p>Every action can be called over IPC, so you can bind it to a key:</p>
+    <div class="code"><pre>omarchy-shell io.github.zhines-labs.acer-charge-guard toggleHealth</pre><button class="copy">Copy</button></div>
+    <div class="tablewrap" style="margin-top:16px">
+      <table>
+        <tr><th>Method</th><th>What it does</th></tr>
+        <tr><td><code>toggleHealth</code></td><td>Turn the 80% limit on or off</td></tr>
+        <tr><td><code>toggleCalibration</code></td><td>Start or stop calibration</td></tr>
+        <tr><td><code>toggle</code> / <code>open</code> / <code>close</code></td><td>Show or hide the panel</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>FAQ</h2>
+    <h3>Does the limit stay on after a reboot?</h3>
+    <p style="color:var(--muted)">That depends on your laptop's firmware. If it resets on your model, turn it back on from the bar after you boot.</p>
+    <h3>Is this an official Acer product?</h3>
+    <p style="color:var(--muted)">No. It's a community plugin. Acer is a trademark of Acer Inc. and is used here only to say which laptops it works with.</p>
+  </section>
+
+  <footer>
+    MIT licensed · Made by <a href="https://github.com/zhines-labs">zhines-labs</a> for <a href="https://omarchy.org">Omarchy</a>
+  </footer>
+</div>
+<script>
+document.querySelectorAll('.copy').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var text = b.previousElementSibling.textContent;
+    navigator.clipboard.writeText(text).then(function () {
+      b.textContent = 'Copied';
+      setTimeout(function () { b.textContent = 'Copy'; }, 1500);
+    }, function () { b.textContent = 'Select & copy'; });
+  });
+});
+</script>
+</body>
+</html>
